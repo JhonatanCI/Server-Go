@@ -33,7 +33,7 @@ func holaMundoHandler(c echo.Context) error {
 func recibirMetricasHandler(c echo.Context) error {
 
 	user := c.Get("user").(*jwt.Token)
-	claims := user.Claims.(*jwt.RegisteredClaims)
+	claims := user.Claims.(jwt.MapClaims)
 	
 	var m Metricas
 
@@ -42,7 +42,7 @@ func recibirMetricasHandler(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "json invalido"})
 	}
 
-	fmt.Printf("Métricas recibidas: %+v. Token expira en: %v\n", m, claims.ExpiresAt)
+	fmt.Printf("Métricas recibidas: %+v. Token del agente expira en: %v\n", m, claims["exp"])
 
 	return c.JSON(http.StatusOK, map[string]string{"status": "métricas recibidas"})
 }
