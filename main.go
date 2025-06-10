@@ -32,7 +32,7 @@ func (s *ServidorAPI) wsHandler(ws *websocket.Conn) {
 
     // Corremos los "pumps" en goroutines separadas para que no se bloqueen entre sí.
     go client.writePump()
-    go client.readPump()
+     client.readPump()
 }
 type ServidorAPI struct {
 	db *pgxpool.Pool
