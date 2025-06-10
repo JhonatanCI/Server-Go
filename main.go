@@ -155,7 +155,7 @@ func main() {
     // --- NUEVO: Conexión a la Base de Datos ---
 	// URL de conexión a tu base de datos.
 	// Formato: postgres://USUARIO:CONTRASEÑA@HOST:PUERTO/NOMBRE_DB
-	dbURL := "postgres://monitor_user:tu_contraseña_segura@localhost:5432/monitor_db"
+	dbURL := "postgres://monitor_user:nueva-pass-segura-123@localhost:5432/monitor_db"
 
 	// Creamos el pool de conexiones.
 	dbpool, err := pgxpool.New(context.Background(), dbURL)
