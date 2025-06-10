@@ -1,15 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"time" // Nuevo import
 
-	"github.com/golang-jwt/jwt/v5" // Nuevo import
-	"github.com/labstack/echo-jwt/v4" // Nuevo import
-	"github.com/labstack/echo/v4"
-	"github.com/jackc/pgx/v5/pgxpool" 
 	"context"
 	"log"
+
+	"github.com/golang-jwt/jwt/v5" // Nuevo import
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/labstack/echo-jwt/v4" // Nuevo import
+	"github.com/labstack/echo/v4"
+	"golang.org/x/net/websocket"
 )
 
 // --- CONSTANTES ---
@@ -23,8 +26,17 @@ type Metricas struct {
 	UsoDisco float64 `json:"uso_disco"`
 }
 
+func (s *ServidorAPI) wsHandler(ws *websocket.Conn) {
+    client := &Client{hub: s.hub, conn: ws, send: make(chan []byte, 256)}
+    client.hub.register <- client
+
+    // Corremos los "pumps" en goroutines separadas para que no se bloqueen entre sí.
+    go client.writePump()
+    go client.readPump()
+}
 type ServidorAPI struct {
 	db *pgxpool.Pool
+	hub *Hub
 }
 
 type LoginRequest struct {
@@ -65,7 +77,10 @@ func (s *ServidorAPI) recibirMetricasHandler(c echo.Context) error {
 
 	log.Printf("Métricas del servidor %d guardadas exitosamente.", servidorID)
 	// -----------------------------------------
-
+	jsonData, err := json.Marshal(m)
+	if err == nil {
+		s.hub.broadcast <- jsonData
+	}
 	// --- Respuesta modificada ---
 	return c.JSON(http.StatusOK, map[string]string{"status": "métricas recibidas y guardadas"})
 }
@@ -170,10 +185,12 @@ func main() {
 	}
 	
 	log.Println("Conexión a la base de datos establecida exitosamente.")
-
+	hub := newHub()
+    go hub.Run()
 	// Creamos nuestra instancia del servidor con la conexión a la BD.
 	api := &ServidorAPI{
 		db: dbpool,
+		hub: hub,
 	}
     // --- FIN DE LA SECCIÓN NUEVA ---
 
@@ -182,6 +199,8 @@ func main() {
 	// --- RUTAS ---
 	e.GET("/", holaMundoHandler) // Esta sigue siendo una función normal
 	e.POST("/login", loginHandler) // Esta también
+
+	e.GET("/ws", echo.WrapHandler(websocket.Handler(api.wsHandler)))
 
 	g := e.Group("/api")
 	config := echojwt.Config{
